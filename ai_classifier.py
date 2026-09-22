@@ -54,8 +54,23 @@ parent is context, not the thing being judged.
 
 Respond with ONLY a single JSON object, no markdown fences, no preamble, in \
 exactly this shape:
-{"useful": true or false, "category": "one of the categories above", "reasoning": "2-4 sentences walking through what in the tweet's wording, tone, and content drove this call, including why you ruled out the next most plausible category"}
+{"useful": true or false, "category": "one of the categories above", "reasoning": "ONE short sentence, 100 characters or less, giving the single main reason for this call"}
+
+The "reasoning" value MUST be 100 characters or less. Be terse -- state the \
+core reason only, no filler words, no restating the category name.
 """
+
+REASONING_MAX_CHARS = 100
+
+
+def _truncate(text: str, max_chars: int) -> str:
+    """Hard cap on reasoning length, enforced in code regardless of what the
+    model actually returns (it's asked to stay under this, but models don't
+    always obey a character limit exactly)."""
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "…"  # trailing ellipsis
 
 
 def classify_tweet(
@@ -100,7 +115,7 @@ def classify_tweet(
         return {
             "useful": bool(parsed.get("useful", False)),
             "category": str(parsed.get("category", "other")),
-            "reasoning": str(parsed.get("reasoning", "")),
+            "reasoning": _truncate(str(parsed.get("reasoning", "")), REASONING_MAX_CHARS),
         }
     except Exception:
         log.exception("Failed to classify tweet, defaulting to not-useful/other.")
